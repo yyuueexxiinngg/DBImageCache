@@ -2,3 +2,5 @@
 .idea/
 .vscode/
 /.idea
+/*.exe
+/static/*.jpg

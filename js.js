@@ -10,41 +10,92 @@
 // @require      https://cdn.jsdelivr.net/npm/lovefield@2.1.12/dist/lovefield.min.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert2@9
 
+// @run-at       document-idle
+// @grant        GM_xmlhttpRequest
+// @grant        GM_addStyle
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_deleteValue
+// @grant        GM_notification
+// @grant        GM_setClipboard
+// @grant        GM_getResourceURL
+// @grant        GM_registerMenuCommand
+// @grant        GM_info
+
+// @connect     114.taobao.com
+
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
-// @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    function javDBScript(){
-        if(document.domain != "www.google.com"){
+    function javDBScriptPreDownload(){
+        if( (/(javbd)*\/v\/*/g).test(document.URL) ) {
             return
         }
-        // if( !(/(javbd)*\/v\/*/g).test(document.URL) ) {
+        if( !(/(javbd.com)*\/*/g).test(document.URL) ) {
+            return
+        }
+        console.log("javdb.com")
+        //$('div.grid-item.column .uid ')[0]
+        let javList = $('div.grid-item.column .uid ')
+
+        for (const v of javList) {
+            //console.log(v.getInnerHTML());
+            let javID = v.getInnerHTML()
+            // let $img = $(`<img name="javRealImg" title="无图" class=""></img>`);
+            // $img.attr("src", "https://114.taobao.com/download/"+javID);
+            // $(jav).after($img);
+
+            GM_xmlhttpRequest( {
+                method:     'GET',
+                url:        "https://114.taobao.com/download/"+javID,
+                onload:     function (responseDetails) {
+                    console.log (javID);
+                }
+            } );
+        }
+    }
+
+    function javDBScript(){
+        // if(document.domain != "www.google.com"){
         //     return
         // }
-        console.log("123")
+
+        if( !(/(javbd)*\/v\/*/g).test(document.URL) ) {
+            return
+        }
+
+        GM_addStyle(`
+                .min {width:66px;min-height: 233px;height:auto;cursor: pointer;} /*Common.addAvImg使用*/
+                .col-md-3 {width: 20%;padding-left: 18px; padding-right: 2px;}
+                .col-xs-12,.col-md-12 {padding-left: 2px; padding-right: 0px;}
+                .col-md-7 {width: 79%;padding-left: 2px;padding-right: 0px;}
+                .col-md-9 {width: max-content;}
+                .col-md-offset-1 {margin-left: auto;}
+                .hobby {display: inline-block;float: left;}
+                .hobby_mov {width: 75%;}
+                .hobby_p {color: white;font-size: 40px;margin: 0 0 0px;display: inline-block;text-align: right;width: 100%;}
+            `);
 
 
         //get javID
-        // let meta = document.getElementsByClassName("title is-4")[0].getElementsByTagName('strong')[0];
-        // let arr = meta.textContent.split(" ");
-        // let javID = arr[0];
-        //console.log("javID:" + javID);
+        let meta = document.getElementsByClassName("title is-4")[0].getElementsByTagName('strong')[0];
+        let arr = meta.textContent.split(" ");
+        let javID = arr[0];
+        console.log("javID:" + javID);
 
 
+        let divEle = $("div[class='video-meta-panel']")[0];
 
-        //let divEle = $("div[class='video-meta-panel")[0];
-        let divEle = $("div[class='RNNXgb")[0];
-        //let url = "<img src=\"http://127.0.0.1:8080/static/image.png\">";
-        let img = document.createElement("img");//创建一个标签
-        img.setAttribute("src", "https://127.0.0.1:8080/static/image.png");
-        //img.setAttribute("src", "https://upload.jianshu.io/users/upload_avatars/5957/6d510770-b55c-465f-80bb-10aab2714cfa.jpg?imageMogr2/auto-orient/strip|imageView2/1/w/96/h/96/format/webp");
-        //$(divEle).attr("id", "video_info");
+        let $img = $(`<img name="javRealImg" title="" class=""></img>`);
+        $img.attr("src", "https://114.taobao.com/img/"+javID);
+        $img.attr("style", "float: left;cursor: pointer;max-width: 100%;");
+
         if (divEle) {
-            $(divEle).after(img);
-            //如果存在min就去除min,否则不存在则添加上min
+            $(divEle).after($img);
+
             $img.click(function () {
                 $(this).toggleClass('min');
                 if ($(this).attr("class")) {
@@ -56,8 +107,9 @@
     }
 
     function mainRun() {
-        console.log("123")
+        console.log("start")
         javDBScript();
+        javDBScriptPreDownload()
     }
     mainRun();
 
