@@ -2,10 +2,13 @@ package main
 
 import (
 	"DBImageCache/file"
+	"DBImageCache/logger"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	logger.Info("123Tsdfsdf")
+	logger.Error("123Tsdfsdf")
 	r := gin.Default()
 	r.GET("/:id", func(c *gin.Context) {
 		name := c.Param("id")
