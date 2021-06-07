@@ -12,6 +12,7 @@ func IsExist(filePath string) bool {
 	return err == nil || os.IsExist(err) && !f.IsDir()
 }
 
+//todo: 先下载到temp文件夹里，如果下载完成，则移动到static下
 func SaveImage(filePath string, content io.Reader) {
 	file, err := os.Create(filePath)
 	if err != nil {

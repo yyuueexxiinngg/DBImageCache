@@ -1,10 +1,11 @@
 // ==UserScript==
-// @name         New Userscript
+// @name         飙车党
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      1.1.0
 // @description  try to take over the world!
-// @author       You
-// @match        http*://*/*
+// @author       UUCCS
+
+// @include      *://*javdb*.com*/*
 
 // @require      https://cdn.jsdelivr.net/npm/jquery@2.2.4/dist/jquery.min.js
 // @require      https://cdn.jsdelivr.net/npm/lovefield@2.1.12/dist/lovefield.min.js
@@ -31,7 +32,7 @@
     'use strict';
 
     function javDBScriptPreDownload(){
-        if( (/(javbd)*\/v\/*/g).test(document.URL) ) {
+        if( (/(javbd)*\/v\//).test(document.URL) ) {
             return
         }
         if( !(/(javbd.com)*\/*/g).test(document.URL) ) {
@@ -43,14 +44,14 @@
 
         for (const v of javList) {
             //console.log(v.getInnerHTML());
-            let javID = v.getInnerHTML()
+            let javID = v.textContent
             // let $img = $(`<img name="javRealImg" title="无图" class=""></img>`);
             // $img.attr("src", "https://114.taobao.com/download/"+javID);
             // $(jav).after($img);
 
             GM_xmlhttpRequest( {
                 method:     'GET',
-                url:        "https://114.taobao.com/download/"+javID,
+                url:        "https://114.taobao.com/img/"+javID,
                 onload:     function (responseDetails) {
                     console.log (javID);
                 }
@@ -63,7 +64,7 @@
         //     return
         // }
 
-        if( !(/(javbd)*\/v\/*/g).test(document.URL) ) {
+        if( !(/(javbd)*\/v\//).test(document.URL) ) {
             return
         }
 
