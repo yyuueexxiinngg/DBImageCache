@@ -1,10 +1,12 @@
 package file
 
 import (
+	"DBImageCache/logger"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
 func IsExist(filePath string) bool {
@@ -12,28 +14,30 @@ func IsExist(filePath string) bool {
 	return err == nil || os.IsExist(err) && !f.IsDir()
 }
 
-//todo: 先下载到temp文件夹里，如果下载完成，则移动到static下
-func SaveImage(filePath string, content io.Reader) {
+func SaveImage(filePath string, content io.Reader) (written int64) {
 	file, err := os.Create(filePath)
 	if err != nil {
 		return
 	}
 	defer file.Close()
 	// Use io.Copy to just dump the response body to the file. This supports huge files
-	_, err = io.Copy(file, content)
+	written, err = io.Copy(file, content)
 	if err != nil {
 		return
 	}
+	return
 }
 
-func DownloadImage(url, filePath string) <-chan struct{} {
+func DownloadImage(url, filePath, fileName string) <-chan struct{} {
 	done := make(chan struct{}, 1)
 
 	go func() {
 		// don't worry about errors
 		defer close(done)
 
-		response, e := http.Get(url)
+		client := http.Client{Timeout: 30 * time.Second}
+
+		response, e := client.Get(url)
 		if e != nil {
 			return
 		}
@@ -43,11 +47,22 @@ func DownloadImage(url, filePath string) <-chan struct{} {
 			return
 		}
 
-		contentLength, _ := strconv.Atoi(response.Header.Get("Content-Length"))
+		contentLength, _ := strconv.ParseInt(response.Header.Get("Content-Length"), 10, 64)
 		if contentLength < 30000 {
 			return
 		}
-		SaveImage(filePath, response.Body)
+		if contentLength != SaveImage("./temp/"+fileName, response.Body) {
+			//放弃临时文件夹的文件
+			os.Remove("./temp/" + fileName)
+			return
+		}
+		//将临时文件夹的文件复制的static里
+		err := os.Rename("./temp/"+fileName, filePath+fileName)
+		if err != nil {
+			logger.Error(fileName + " file move error: " + err.Error())
+			return
+		}
+
 	}()
 
 	return done

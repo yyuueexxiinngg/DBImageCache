@@ -1,9 +1,10 @@
 # Ignore IDE folders
 .idea/
 .vscode/
-/.idea
+/run/
+/temp/
+
 /*.exe
 /static/*.jpg
-/run/
 *.crt
 *.key
