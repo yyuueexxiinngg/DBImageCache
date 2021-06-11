@@ -4,6 +4,8 @@ go 1.16
 
 require (
 	github.com/PuerkitoBio/goquery v1.6.1 // indirect
+	github.com/anacrolix/torrent v1.28.0 // indirect
+	github.com/elgatito/upnp v0.0.0-20180711183757-2f244d205f9a // indirect
 	github.com/gin-gonic/gin v1.7.2 // indirect
 	github.com/go-playground/validator/v10 v10.6.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect

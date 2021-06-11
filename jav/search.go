@@ -14,6 +14,8 @@ import (
 
 var JavImageLocalFiles sync.Map
 
+var connectTime = 10 * time.Second
+
 func init() {
 	err := os.MkdirAll("./temp", os.ModePerm)
 	if err != nil {
@@ -86,7 +88,7 @@ func SearchJavstore(javID string) (string, bool) {
 	//javID := "OREC-769"
 	//javID := "SSIS-086"
 	client := http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: connectTime,
 	}
 	res, err := client.Get("http://javStore.net/search/" + javID + ".html")
 	if err != nil {
@@ -164,7 +166,7 @@ func SearchJavstore(javID string) (string, bool) {
 func SearchJavpop(javID string) (string, bool) {
 	//javID := "300NTK-181"
 	client := http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: connectTime,
 	}
 	res, err := client.Get("http://javpop.com/index.php?s=" + javID)
 	if err != nil {
@@ -227,7 +229,7 @@ func SearchJavpop(javID string) (string, bool) {
 func SearchJavbest(javID string) (string, bool) {
 	//javID := "300NTK-181"
 	client := http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: connectTime,
 	}
 	res, err := client.Get("http://javbest.net/?s=" + javID)
 	if err != nil {

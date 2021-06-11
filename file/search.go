@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+var downloadTime = 50 * time.Second
+
 func IsExist(filePath string) bool {
 	f, err := os.Stat(filePath) //os.Stat获取文件信息
 	return err == nil || os.IsExist(err) && !f.IsDir()
@@ -35,7 +37,7 @@ func DownloadImage(url, filePath, fileName string) <-chan struct{} {
 		// don't worry about errors
 		defer close(done)
 
-		client := http.Client{Timeout: 30 * time.Second}
+		client := http.Client{Timeout: downloadTime}
 
 		response, e := client.Get(url)
 		if e != nil {
