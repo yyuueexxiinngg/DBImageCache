@@ -59,9 +59,13 @@ var notFount sync.Map
 //javpop 图片较小
 func main() {
 	r := gin.Default()
-	//r.Use(timeoutMiddleware(time.Second * 60))
-	r.Use(TlsHandler())
 
+	r.Use(TlsHandler())
+	//r.Use(timeoutMiddleware(time.Second * 60))
+
+	r.GET("/", func(c *gin.Context) {
+		c.String(200, "X-Frame-Options header is now `DENY`.")
+	})
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",
@@ -109,6 +113,7 @@ func main() {
 	})
 
 	//r.StaticFS("/static", http.Dir("./static"))
+	go r.Run(":80")
 	r.RunTLS(":443", "./localhost.crt", "./localhost.key")
 	//r.Run(":8080")
 }
