@@ -46,11 +46,6 @@ func init() {
 
 }
 
-const (
-	WaitDownload = iota
-	Fine
-)
-
 var notFount sync.Map
 
 //SearchJavbest
