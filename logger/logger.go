@@ -16,6 +16,7 @@ var once sync.Once
 type AppLogger struct {
 	zLogger *zap.Logger
 }
+
 var instantiated *AppLogger
 
 type CallbackFunction func(zapcore.Level, *map[string]interface{})
@@ -24,7 +25,7 @@ var externalLogger CallbackFunction
 var externalLoggerName string
 var level zapcore.Level
 
-func initLogger(){
+func initLogger() {
 	once.Do(func() {
 		level := zap.InfoLevel
 		atom := zap.NewAtomicLevelAt(level)
@@ -43,11 +44,10 @@ func initLogger(){
 			EncodeCaller:   zapcore.FullCallerEncoder, // 全路径编码器
 		}
 
-
 		zconfig := zap.Config{
-			Level:       atom,   // 日志级别
-			Development: true,   // 开发模式，堆栈跟踪
-			Encoding:    "json", // 输出格式 console 或 json
+			Level:            atom,                                                 // 日志级别
+			Development:      true,                                                 // 开发模式，堆栈跟踪
+			Encoding:         "json",                                               // 输出格式 console 或 json
 			EncoderConfig:    encoderConfig,                                        // 编码器配置
 			InitialFields:    map[string]interface{}{"serviceName": "radarserver"}, // 初始化字段，如：添加一个服务器名称
 			OutputPaths:      []string{"stdout"},                                   // 输出到指定文件 stdout（标准输出，正常颜色） stderr（错误输出，红色）
@@ -59,6 +59,7 @@ func initLogger(){
 			fmt.Println("logger init error: ", err)
 			os.Exit(1)
 		}
+		zap.ReplaceGlobals(zlogger)
 
 		logger := AppLogger{
 			zLogger: zlogger,
@@ -70,7 +71,8 @@ func initLogger(){
 // Info is a convenient alias for Root().Info
 func Info(msg string, ctx ...zap.Field) {
 	initLogger()
-	instantiated.zLogger.Info(msg, ctx...)
+	zap.L().Info(msg, ctx...)
+	//instantiated.zLogger.Info(msg, ctx...)
 	callExternalLogger(zap.InfoLevel, msg, ctx...)
 }
 
@@ -87,7 +89,6 @@ func Error(msg string, ctx ...zap.Field) {
 	instantiated.zLogger.Error(msg, ctx...)
 	callExternalLogger(zap.ErrorLevel, msg, ctx...)
 }
-
 
 func callExternalLogger(level zapcore.Level, msg string, fields ...zap.Field) {
 	data := make(map[string]interface{})
