@@ -3,6 +3,7 @@ package main
 import (
 	"DBImageCache/file"
 	"DBImageCache/jav"
+	"DBImageCache/logger"
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -58,9 +60,6 @@ func main() {
 	r.Use(TlsHandler())
 	//r.Use(timeoutMiddleware(time.Second * 60))
 
-	r.GET("/", func(c *gin.Context) {
-		c.String(200, "X-Frame-Options header is now `DENY`.")
-	})
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "pong",
@@ -69,7 +68,10 @@ func main() {
 
 	r.GET("/img/:javID", func(c *gin.Context) {
 		javID := c.Param("javID")
-		//ctx := c.Request.Context()
+		isFc2 := strings.HasPrefix(javID, "FC2-")
+		if isFc2 {
+			javID = "FC2-PPV-" + javID[4:]
+		}
 
 		if status, ok := jav.JavImageLocalFiles.Load(javID); ok {
 			<-status.(<-chan struct{})
@@ -86,31 +88,32 @@ func main() {
 		}
 
 		//todo:查找提示网络错误，还是真的没找到
-		//jav
 		if jav.JavStore(javID) {
+			logger.Info(javID + "：Find in javStroe")
 			c.File("./static/" + javID + ".jpg")
 			return
 		}
 		if jav.JavBest(javID) {
+			logger.Info(javID + "：Find in JavBest")
 			c.File("./static/" + javID + ".jpg")
 			return
 		}
-		if jav.JavScreens(javID) {
+		if !isFc2 && jav.JavScreens(javID) {
+			logger.Info(javID + "：Find in JavScreens")
 			c.File("./static/" + javID + ".jpg")
 			return
 		}
 		if jav.JavPop(javID) {
+			logger.Info(javID + "：Find in JavPop")
 			c.File("./static/" + javID + ".jpg")
 			return
 		}
+		logger.Info(javID + "：not found")
 		notFount.Store(javID, true)
 		c.File("./static/notFound.png")
 	})
 
-	//r.StaticFS("/static", http.Dir("./static"))
-	go r.Run(":80")
 	r.RunTLS(":443", "./localhost.crt", "./localhost.key")
-	//r.Run(":8080")
 }
 
 func TlsHandler() gin.HandlerFunc {
