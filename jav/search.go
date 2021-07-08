@@ -1,322 +1,98 @@
 package jav
 
 import (
-	"DBImageCache/file"
+	"DBImageCache/config"
 	"DBImageCache/logger"
-	"DBImageCache/utils"
-	"bytes"
 	"errors"
-	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/sync/errgroup"
+	"io"
+	"net/http"
 	"os"
-	"regexp"
-	"strings"
-	"sync"
+	"strconv"
 	"time"
 )
 
-var JavImageLocalFiles sync.Map
+var downloadTime = 60 * time.Second
+var connectTime = 20 * time.Second
 
-var connectTime = 10 * time.Second
+//todo: 屏蔽VR相关，减少查找
+var VRLists = []string{
+	"CVPS",
+	"DSVR",
+	"EIN",
+	"HNVR",
+	"IPVR",
+	"JUVR",
+	"KAVR",
+	"OVVR",
+	"VRKM",
+	"WAVR",
+	"MDVR",
+}
 
-func init() {
-	err := os.MkdirAll("./temp", os.ModePerm)
+type JavImger interface {
+	Search() (url string, err error)
+}
+
+var (
+	ErrNotFound       = errors.New("jav not found")
+	ErrDownloadFailed = errors.New("jav download failed")
+)
+
+func SaveImage(filePath string, content io.Reader) (written int64) {
+	file, err := os.Create(filePath)
 	if err != nil {
-		logger.Error(err.Error())
 		return
 	}
+	defer file.Close()
+	// Use io.Copy to just dump the response body to the file. This supports huge files
+	written, err = io.Copy(file, content)
+	if err != nil {
+		return
+	}
+	return
 }
 
-func JavScreens(javID string) bool {
-	done := file.DownloadImage("http://javScreens.com/images/"+javID+".jpg", "./static/", javID+".jpg")
-	JavImageLocalFiles.Store(javID, done)
-	<-done
-	JavImageLocalFiles.Delete(javID)
+func DownloadImage(url, filePath, javID string) *errgroup.Group {
+	//done := make(chan error, 1)
+	var g errgroup.Group
 
-	if file.IsExist("./static/" + javID + ".jpg") {
-		return true
-	}
-	return false
-}
+	fileName := javID + ".jpg"
+	g.Go(func() error {
 
-func JavBestSearch(searchID, javID string) bool {
-	url, err := SearchJavbest(searchID)
-	if err != nil {
-		return false
-	}
-	done := file.DownloadImage(url, "./static/", javID+".jpg")
-	JavImageLocalFiles.Store(javID, done)
-	<-done
-	JavImageLocalFiles.Delete(javID)
-	if file.IsExist("./static/" + javID + ".jpg") {
-		//c.File("./static/" + javID + ".jpg")
-		return true
-	}
-	return false
-}
+		client := http.Client{Timeout: downloadTime}
 
-func JavBest(javID string) bool {
-	url, err := SearchJavbest(javID)
-	if err != nil {
-		return false
-	}
-	done := file.DownloadImage(url, "./static/", javID+".jpg")
-	JavImageLocalFiles.Store(javID, done)
-	<-done
-	JavImageLocalFiles.Delete(javID)
-	if file.IsExist("./static/" + javID + ".jpg") {
-		//c.File("./static/" + javID + ".jpg")
-		return true
-	}
-	return false
-}
-
-func JavStoreSearch(searchID, javID string) bool {
-	url, err := SearchJavstore(searchID)
-	if err != nil {
-		return false
-	}
-	done := file.DownloadImage(url, "./static/", javID+".jpg")
-	JavImageLocalFiles.Store(javID, done)
-	<-done
-	JavImageLocalFiles.Delete(javID)
-	if file.IsExist("./static/" + javID + ".jpg") {
-		//c.File("./static/" + javID + ".jpg")
-		return true
-	}
-	return false
-}
-
-func JavStore(javID string) bool {
-	url, err := SearchJavstore(javID)
-	if err != nil {
-		return false
-	}
-	done := file.DownloadImage(url, "./static/", javID+".jpg")
-	JavImageLocalFiles.Store(javID, done)
-	<-done
-	JavImageLocalFiles.Delete(javID)
-	if file.IsExist("./static/" + javID + ".jpg") {
-		//c.File("./static/" + javID + ".jpg")
-		return true
-	}
-	return false
-}
-
-func JavPopSearch(searchID, javID string) bool {
-	url, err := SearchJavpop(searchID)
-	if err != nil {
-		return false
-	}
-
-	done := file.DownloadImage(url, "./static/", javID+".jpg")
-	JavImageLocalFiles.Store(javID, done)
-	<-done
-	JavImageLocalFiles.Delete(javID)
-	if file.IsExist("./static/" + javID + ".jpg") {
-		return true
-	}
-	return false
-}
-
-func JavPop(javID string) bool {
-	url, err := SearchJavpop(javID)
-	if err != nil {
-		return false
-	}
-
-	done := file.DownloadImage(url, "./static/", javID+".jpg")
-	JavImageLocalFiles.Store(javID, done)
-	<-done
-	JavImageLocalFiles.Delete(javID)
-	if file.IsExist("./static/" + javID + ".jpg") {
-		return true
-	}
-	return false
-}
-
-func SearchJavstore(javID string) (string, error) {
-	content, err := utils.GetWithTime("http://javStore.net/search/"+javID+".html", connectTime)
-	if err != nil {
-		return "", err
-	}
-
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
-	if err != nil {
-		return "", err
-	}
-
-	titleContent := javID
-	if strings.HasPrefix(javID, "FC2") {
-		_, titleContent = utils.SplitJavID(javID)
-	}
-
-	var selc *goquery.Selection
-	doc.Find(".news_1n li h3 span a").EachWithBreak(func(i int, s *goquery.Selection) bool {
-		if title, ok := s.Attr("title"); ok && strings.Contains(title, titleContent) {
-			if strings.Contains(title, "Uncensored") || strings.Contains(title, "FHD") {
-				selc = s
-				return false
-			}
-			selc = s
+		response, err := client.Get(url)
+		if err != nil {
+			return err
 		}
-		return true
-	})
-	if selc == nil {
-		return "", errors.New("not found content")
-	}
 
-	//fmt.Println(selc.Attr("href"))
+		defer response.Body.Close()
 
-	detailPage, ok := selc.Attr("href")
-	if !ok {
-		return "", errors.New("not found href")
-	}
-
-	content, err = utils.GetWithTime(detailPage, connectTime)
-	if err != nil {
-		return "", err
-	}
-
-	doc2, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
-	if err != nil {
-		return "", err
-	}
-	url := ""
-	doc2.Find(".news a img[alt*=th]").Each(func(i int, s *goquery.Selection) {
-		//fmt.Println(s.Attr("src"))
-		url, ok = s.Attr("src")
-	})
-	if !ok || url == "" {
-		return "", errors.New("not found img")
-	}
-	//url := "https://img.javstore.net/images/2021/06/03/SSIS-086_s.th.jpg"
-	url = strings.ReplaceAll(url, "pixhost.org", "pixhost.to")
-	url = strings.ReplaceAll(url, ".th", "")
-	url = strings.ReplaceAll(url, "thumbs", "images")
-	url = strings.ReplaceAll(url, "//t", "//img")
-	re3, _ := regexp.Compile("[\\?*\\\"*]")
-	url = re3.ReplaceAllString(url, "")
-	url = strings.ReplaceAll(url, "https", "http")
-
-	return url, nil
-}
-
-func SearchJavpop(javID string) (string, error) {
-	if strings.HasPrefix(javID, "FC2-PPV-") {
-		javID = strings.ReplaceAll(javID, "FC2-PPV-", "FC2_PPV-")
-	}
-
-	content, err := utils.GetWithTime("http://javpop.com/index.php?s="+javID, connectTime)
-	if err != nil {
-		return "", err
-	}
-
-	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(content))
-	if err != nil {
-		return "", err
-	}
-
-	// Find the review items
-	var selc *goquery.Selection
-	doc.Find(".entry a").EachWithBreak(func(i int, s *goquery.Selection) bool {
-		if title, ok := s.Attr("title"); ok && strings.Contains(title, javID) {
-			if strings.Contains(title, "Uncensored") || strings.Contains(title, "FHD") {
-				selc = s
-				return false
+		if response.StatusCode != http.StatusOK {
+			if response.StatusCode == http.StatusNotFound {
+				return ErrNotFound
+			} else {
+				return ErrDownloadFailed
 			}
-			selc = s
 		}
-		return true
-	})
-	if selc == nil {
-		return "", errors.New("not found content")
-	}
 
-	detailPage, ok := selc.Attr("href")
-	if !ok {
-		return "", errors.New("not href")
-	}
-
-	content, err = utils.GetWithTime(detailPage, connectTime)
-
-	doc2, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
-	if err != nil {
-		return "", err
-	}
-
-	url, ok := doc2.Find(".screenshot img").First().Attr("src")
-	if !ok || url == "" {
-		return "", errors.New("not screenshot img")
-	}
-
-	return url, nil
-}
-
-func SearchJavbest(javID string) (string, error) {
-	content, err := utils.GetWithTime("http://javbest.net/?s="+javID, connectTime)
-	if err != nil {
-		return "", err
-	}
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
-	if err != nil {
-		return "", err
-	}
-
-	titleContent := javID
-	if strings.HasPrefix(javID, "FC2") {
-		_, titleContent = utils.SplitJavID(javID)
-	}
-
-	// Find the review items
-	var selc *goquery.Selection
-	doc.Find(".content-area article h1 a").EachWithBreak(func(i int, s *goquery.Selection) bool {
-		if title, ok := s.Attr("title"); ok && strings.Contains(title, titleContent) {
-			if strings.Contains(title, "Uncensored") || strings.Contains(title, "FHD") {
-				selc = s
-				return false
-			}
-			selc = s
+		contentLength, _ := strconv.ParseInt(response.Header.Get("Content-Length"), 10, 64)
+		if contentLength < 30000 {
+			return ErrNotFound
 		}
-		return true
+		if contentLength != SaveImage(config.ImgPath()+"temp/"+fileName, response.Body) {
+			//放弃临时文件夹的文件
+			os.Remove(config.ImgPath() + "temp/" + fileName)
+			return nil
+		}
+		//将临时文件夹的文件复制的static里
+		err = os.Rename(config.ImgPath()+"temp/"+fileName, filePath+fileName)
+		if err != nil {
+			logger.Error(fileName + " file move error: " + err.Error())
+			return err
+		}
+		return ErrNotFound
 	})
-	if selc == nil {
-		return "", errors.New("can't search")
-	}
-
-	searchPage, ok := selc.Attr("href")
-	if !ok {
-		panic("not found href")
-		//return "", errors.New("not found href")
-	}
-
-	content, err = utils.GetWithTime(searchPage, connectTime)
-	if err != nil {
-		return "", err
-	}
-	doc2, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
-	if err != nil {
-		return "", err
-	}
-
-	detailPage, ok := doc2.Find(".entry-content p a").First().Attr("href")
-	if !ok || detailPage == "" {
-		panic("not found href")
-		//return "", errors.New("not found href")
-	}
-
-	content, err = utils.GetWithTime(detailPage, connectTime)
-	if err != nil {
-		return "", err
-	}
-	doc3, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
-	if err != nil {
-		return "", err
-	}
-
-	url, ok := doc3.Find(".pic").First().Attr("src")
-	if !ok || url == "" {
-		return "", errors.New("not found img")
-	}
-
-	return url, nil
+	return &g
 }

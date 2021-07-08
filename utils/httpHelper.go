@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -16,7 +17,7 @@ func GetWithTime(url string, time time.Duration) ([]byte, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, err
+		return nil, errors.New(res.Status)
 	}
 
 	//res.Body.Read()

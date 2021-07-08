@@ -1,10 +1,13 @@
 package main
 
 import (
+	"DBImageCache/config"
 	"DBImageCache/file"
 	"DBImageCache/jav"
 	"DBImageCache/logger"
 	"context"
+	"embed"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/mattn/go-ieproxy"
@@ -18,6 +21,14 @@ import (
 	"sync"
 	"time"
 )
+
+//go:embed  static
+var static embed.FS
+
+var javStore = jav.JavStore{Repeat: 3, Limit: make(chan struct{}, 10)}
+var javBest = jav.JavBest{Repeat: 3, Limit: make(chan struct{}, 10)}
+var javScreens = jav.JavScreens{Repeat: 3, Limit: make(chan struct{}, 10)}
+var javPop = jav.JavPop{Repeat: 3, Limit: make(chan struct{}, 10)}
 
 func init() {
 	//获取系统代理
@@ -45,16 +56,15 @@ func init() {
 			os.Exit(1)
 		}
 	}
-
 }
-
-var notFount sync.Map
 
 //SearchJavbest
 //SearchJavstore 部分被删除图片
-//javscreen  电影少
+//javScreen  电影少
 //javpop 图片较小
 func main() {
+	javBest.Search("REBD-447")
+	var history sync.Map
 	r := gin.Default()
 
 	r.Use(TlsHandler())
@@ -72,48 +82,75 @@ func main() {
 		if isFc2 {
 			javID = "FC2-PPV-" + javID[4:]
 		}
-
-		if status, ok := jav.JavImageLocalFiles.Load(javID); ok {
-			<-status.(<-chan struct{})
-			c.File("./static/" + javID + ".jpg")
-			return
-		}
-		if file.IsExist("./static/" + javID + ".jpg") {
-			c.File("./static/" + javID + ".jpg")
-			return
-		}
-		if _, ok := notFount.Load(javID); ok {
-			c.File("./static/notFound.png")
-			return
+		LoadImg := func() {
+			if file.IsExist(config.ImgPath() + javID + ".jpg") {
+				c.File(config.ImgPath() + javID + ".jpg")
+				return
+			}
+			c.FileFromFS("static/notFound.png", http.FS(static))
 		}
 
-		//todo:查找提示网络错误，还是真的没找到
-		if jav.JavStore(javID) {
-			logger.Info(javID + "：Find in javStroe")
-			c.File("./static/" + javID + ".jpg")
+		//start
+		if running, ok := history.Load(javID); ok {
+			<-(*running.(*chan struct{}))
+			LoadImg()
 			return
 		}
-		if jav.JavBest(javID) {
-			logger.Info(javID + "：Find in JavBest")
-			c.File("./static/" + javID + ".jpg")
+
+		//防止相同的javID进来，重新查询
+		done := make(chan struct{}, 1)
+		defer close(done)
+		history.Store(javID, &done)
+
+		if file.IsExist(config.ImgPath() + javID + ".jpg") {
+			c.File(config.ImgPath() + javID + ".jpg")
 			return
 		}
-		if !isFc2 && jav.JavScreens(javID) {
-			logger.Info(javID + "：Find in JavScreens")
-			c.File("./static/" + javID + ".jpg")
+		//todo: 记录每个番号的访问时间，磁盘满10G时，删除最久没访问过的100M文件
+		if err := javStore.Download(javID); errors.Is(err, jav.ErrNotFound) {
+			logger.Info("JavStore Not Found: " + javID)
+		} else if err != nil {
+			logger.Error("Jav [" + javID + "]: " + err.Error())
+		} else {
+			logger.Info("JavStore Found: " + javID)
+			c.File(config.ImgPath() + javID + ".jpg")
 			return
 		}
-		if jav.JavPop(javID) {
-			logger.Info(javID + "：Find in JavPop")
-			c.File("./static/" + javID + ".jpg")
+
+		if err := javBest.Download(javID); errors.Is(err, jav.ErrNotFound) {
+			logger.Info("JavBest Not Found: " + javID)
+		} else if err != nil {
+			logger.Error("javBest [" + javID + "]: " + err.Error())
+		} else {
+			logger.Info("JavBest Found: " + javID)
+			c.File(config.ImgPath() + javID + ".jpg")
 			return
 		}
-		logger.Info(javID + "：not found")
-		notFount.Store(javID, true)
-		c.File("./static/notFound.png")
+
+		if err := javScreens.Download(javID); errors.Is(err, jav.ErrNotFound) {
+			logger.Info("JavScreens Not Found: " + javID)
+		} else if err != nil {
+			logger.Error("JavScreens [" + javID + "]: " + err.Error())
+		} else {
+			logger.Info(javID + "JavScreens Found: " + javID)
+			c.File(config.ImgPath() + javID + ".jpg")
+			return
+		}
+
+		if err := javPop.Download(javID); errors.Is(err, jav.ErrNotFound) {
+			logger.Info("javPop Not Found:" + javID)
+		} else if err != nil {
+			logger.Error("javPop [" + javID + "]: " + err.Error())
+		} else {
+			logger.Info("javPop Found: " + javID)
+			c.File(config.ImgPath() + javID + ".jpg")
+			return
+		}
+		logger.Info(javID + "：Not Found")
+		c.FileFromFS("static/notFound.png", http.FS(static))
 	})
 
-	r.RunTLS(":443", "./localhost.crt", "./localhost.key")
+	r.RunTLS("127.0.0.1:443", "./localhost.crt", "./localhost.key")
 }
 
 func TlsHandler() gin.HandlerFunc {

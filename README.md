@@ -5,3 +5,9 @@
 新办法：
 每个人自己使用mkcert生成自用证书
 https://github.com/FiloSottile/mkcert
+
+
+## Bug
+
+* 搜索时候HRV-039 会被CHRV-039干扰
+* 网络偶尔错误，导致下载了劣质图片
