@@ -92,7 +92,7 @@ func DownloadImage(url, filePath, javID string) *errgroup.Group {
 			logger.Error(fileName + " file move error: " + err.Error())
 			return err
 		}
-		return ErrNotFound
+		return nil
 	})
 	return &g
 }

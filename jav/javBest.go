@@ -33,6 +33,8 @@ func (j JavBest) Download(javID string) error {
 		//没找到直接返回
 		if url == "" {
 			return ErrNotFound
+		} else {
+			break
 		}
 	}
 
@@ -66,7 +68,7 @@ func (j JavBest) Search(javID string) (string, error) {
 
 	// Find the review items
 	var selc *goquery.Selection
-	doc.Find(".content-area article h1 a").EachWithBreak(func(i int, s *goquery.Selection) bool {
+	doc.Find(".app_main_container article h2 a").EachWithBreak(func(i int, s *goquery.Selection) bool {
 		if title, ok := s.Attr("title"); ok && reg.MatchString(title) {
 			if strings.Contains(title, "Uncensored") || strings.Contains(title, "FHD") {
 				selc = s
@@ -95,7 +97,7 @@ func (j JavBest) Search(javID string) (string, error) {
 		return "", err
 	}
 
-	detailPage, ok := doc2.Find(".entry-content p a").First().Attr("href")
+	detailPage, ok := doc2.Find(".post-single-content p a").First().Attr("href")
 	if !ok || detailPage == "" {
 		panic("not found href")
 		//return "", errors.New("not found href")

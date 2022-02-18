@@ -8,14 +8,11 @@ import (
 	"context"
 	"embed"
 	"errors"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/mattn/go-ieproxy"
-	"github.com/unrolled/secure"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -42,20 +39,6 @@ func init() {
 	if err = os.Chdir(dir); err != nil {
 		log.Fatalln(err)
 	}
-
-	//检测证书并安装
-	if !file.IsExist("localhost.crt") {
-		cmd := exec.Command("./mkcert_win/mkcert.exe", "-install")
-		if result, err := cmd.Output(); err != nil {
-			fmt.Println(err, result)
-			os.Exit(1)
-		}
-		cmd = exec.Command("./mkcert_win/mkcert.exe", "-cert-file", "./localhost.crt", "-key-file", "./localhost.key", "114.taobao.com", "127.0.0.1", "::1")
-		if result, err := cmd.Output(); err != nil {
-			fmt.Println(err, result)
-			os.Exit(1)
-		}
-	}
 }
 
 //SearchJavbest
@@ -63,12 +46,9 @@ func init() {
 //javScreen  电影少
 //javpop 图片较小
 func main() {
-	javBest.Search("REBD-447")
+	//javBest.Search("REBD-447")
 	var history sync.Map
 	r := gin.Default()
-
-	r.Use(TlsHandler())
-	//r.Use(timeoutMiddleware(time.Second * 60))
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -150,22 +130,7 @@ func main() {
 		c.FileFromFS("static/notFound.png", http.FS(static))
 	})
 
-	r.RunTLS("127.0.0.1:443", "./localhost.crt", "./localhost.key")
-}
-
-func TlsHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		secureMiddleware := secure.New(secure.Options{
-			SSLRedirect: true,
-			SSLHost:     "114.taobao.com:443",
-		})
-		err := secureMiddleware.Process(c.Writer, c.Request)
-		if err != nil {
-			return
-		}
-
-		c.Next()
-	}
+	r.Run("0.0.0.0:5713")
 }
 
 func timeoutMiddleware(timeout time.Duration) func(c *gin.Context) {

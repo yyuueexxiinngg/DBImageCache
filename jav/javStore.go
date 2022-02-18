@@ -34,6 +34,8 @@ func (j JavStore) Download(javID string) error {
 		//没找到直接返回
 		if url == "" {
 			return ErrNotFound
+		} else {
+			break
 		}
 	}
 
@@ -111,7 +113,6 @@ func (j JavStore) Search(javID string) (string, error) {
 	url = strings.ReplaceAll(url, "//t", "//img")
 	re3, _ := regexp.Compile("[\\?*\\\"*]")
 	url = re3.ReplaceAllString(url, "")
-	url = strings.ReplaceAll(url, "https", "http")
 
 	return url, nil
 }

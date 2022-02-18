@@ -33,6 +33,8 @@ func (j JavPop) Download(javID string) error {
 		//没找到直接返回
 		if url == "" {
 			return ErrNotFound
+		} else {
+			break
 		}
 	}
 
