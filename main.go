@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -57,11 +58,13 @@ func main() {
 	})
 
 	r.GET("/img/:javID", func(c *gin.Context) {
-		javID := c.Param("javID")
-		isFc2 := strings.HasPrefix(javID, "FC2-")
+		javID := strings.ToUpper(c.Param("javID"))
+		isFc2 := strings.Contains(javID, "FC2")
 		if isFc2 {
-			javID = "FC2-PPV-" + javID[4:]
+			re := regexp.MustCompile("[0-9]{2,}")
+			javID = "FC2-PPV-" + re.FindString(javID)
 		}
+		logger.Info("Start getting javID: " + javID)
 		LoadImg := func() {
 			if file.IsExist(config.ImgPath() + javID + ".jpg") {
 				c.File(config.ImgPath() + javID + ".jpg")

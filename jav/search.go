@@ -62,6 +62,7 @@ func DownloadImage(url, filePath, javID string) *errgroup.Group {
 
 		client := http.Client{Timeout: downloadTime}
 
+		logger.Info("Start to download: " + url)
 		response, err := client.Get(url)
 		if err != nil {
 			return err
@@ -77,12 +78,14 @@ func DownloadImage(url, filePath, javID string) *errgroup.Group {
 			}
 		}
 
-		contentLength, _ := strconv.ParseInt(response.Header.Get("Content-Length"), 10, 64)
+		contentLength := response.ContentLength
 		if contentLength < 30000 {
 			return ErrNotFound
 		}
+		logger.Info("ContentLength: " + strconv.FormatInt(contentLength, 10))
 		if contentLength != SaveImage(config.ImgPath()+"temp/"+fileName, response.Body) {
 			//放弃临时文件夹的文件
+			logger.Info("放弃临时文件夹的文件")
 			os.Remove(config.ImgPath() + "temp/" + fileName)
 			return nil
 		}
