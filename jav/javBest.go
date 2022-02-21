@@ -70,11 +70,16 @@ func (j JavBest) Search(javID string) (string, error) {
 	var selc *goquery.Selection
 	doc.Find(".app_main_container article h2 a").EachWithBreak(func(i int, s *goquery.Selection) bool {
 		if title, ok := s.Attr("title"); ok && reg.MatchString(title) {
-			if strings.Contains(title, "Uncensored") || strings.Contains(title, "FHD") {
+			title = strings.ToLower(title)
+			if selc == nil {
+				selc = s
+			}
+			if strings.Contains(title, "uncensored") {
 				selc = s
 				return false
+			} else if strings.Contains(title, "4k") || strings.Contains(title, "fhd") {
+				selc = s
 			}
-			selc = s
 		}
 		return true
 	})

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"DBImageCache/config"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -11,7 +12,12 @@ func GetWithTime(url string, time time.Duration) ([]byte, error) {
 	client := http.Client{
 		Timeout: time,
 	}
-	res, err := client.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", config.UserAgent)
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

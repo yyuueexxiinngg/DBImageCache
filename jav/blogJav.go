@@ -7,15 +7,16 @@ import (
 	"bytes"
 	"errors"
 	"github.com/PuerkitoBio/goquery"
+	"regexp"
 	"strings"
 )
 
-type JavPop struct {
+type BlogJav struct {
 	Repeat int
 	Limit  chan struct{}
 }
 
-func (j JavPop) Download(javID string) error {
+func (j BlogJav) Download(javID string) error {
 	j.Limit <- struct{}{}
 	defer func() { <-j.Limit }()
 
@@ -25,10 +26,10 @@ func (j JavPop) Download(javID string) error {
 		url, err = j.Search(javID)
 		//遇到网络错误进行重试
 		if err != nil {
-			if t != j.Repeat-1 {
-				continue
+			if t == j.Repeat-1 {
+				return err
 			}
-			return err
+			continue
 		}
 		//没找到直接返回
 		if url == "" {
@@ -49,25 +50,30 @@ func (j JavPop) Download(javID string) error {
 	return ErrDownloadFailed
 }
 
-func (j JavPop) Search(javID string) (string, error) {
-	if strings.HasPrefix(javID, "FC2-PPV-") {
-		javID = strings.ReplaceAll(javID, "FC2-PPV-", "FC2_PPV-")
+func (j BlogJav) Search(javID string) (string, error) {
+	if strings.HasPrefix(javID, "FC2") {
+		javID = strings.ReplaceAll(javID, "-", " ")
 	}
 
-	content, err := utils.GetWithTime("http://javpop.com/index.php?s="+javID, connectTime)
+	content, err := utils.GetWithTime("http://blogjav.net/?s="+javID, connectTime)
 	if err != nil {
 		return "", err
 	}
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(content))
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
 	if err != nil {
 		return "", err
 	}
 
-	// Find the review items
+	titleContent := javID
+	if strings.HasPrefix(javID, "FC2") {
+		_, titleContent = utils.SplitJavID(javID)
+	}
+
 	var selc *goquery.Selection
-	doc.Find(".entry a").EachWithBreak(func(i int, s *goquery.Selection) bool {
-		if title, ok := s.Attr("title"); ok && strings.Contains(title, "["+javID+"]") {
+	var reg = regexp.MustCompile(`\b` + titleContent + `\b`)
+	doc.Find(".content-area .inside-article h2 a").EachWithBreak(func(i int, s *goquery.Selection) bool {
+		if title := s.Text(); reg.MatchString(title) {
 			title = strings.ToLower(title)
 			if selc == nil {
 				selc = s
@@ -85,22 +91,33 @@ func (j JavPop) Search(javID string) (string, error) {
 		return "", ErrNotFound
 	}
 
+	//fmt.Println(selc.Attr("href"))
+
 	detailPage, ok := selc.Attr("href")
 	if !ok {
-		return "", errors.New("not href")
+		return "", errors.New("not found href")
 	}
 
 	content, err = utils.GetWithTime(detailPage, connectTime)
+	if err != nil {
+		return "", err
+	}
 
 	doc2, err := goquery.NewDocumentFromReader(bytes.NewReader(content))
 	if err != nil {
 		return "", err
 	}
 
-	url, ok := doc2.Find(".screenshot img").First().Attr("src")
+	url, ok := doc2.Find(".entry-content a").First().Find("img").Attr("data-lazy-src")
 	if !ok || url == "" {
-		return "", errors.New("not screenshot img")
+		return "", ErrNotFound
 	}
+	url = strings.ReplaceAll(url, "pixhost.org", "pixhost.to")
+	url = strings.ReplaceAll(url, ".th", "")
+	url = strings.ReplaceAll(url, "thumbs", "images")
+	url = strings.ReplaceAll(url, "//t", "//img")
+	re3, _ := regexp.Compile("[\\?*\\\"*]")
+	url = re3.ReplaceAllString(url, "")
 
 	return url, nil
 }

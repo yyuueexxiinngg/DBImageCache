@@ -70,11 +70,8 @@ func (j JavStore) Search(javID string) (string, error) {
 	var reg = regexp.MustCompile(`\b` + titleContent + `\b`)
 	doc.Find(".news_1n li h3 span a").EachWithBreak(func(i int, s *goquery.Selection) bool {
 		if title, ok := s.Attr("title"); ok && reg.MatchString(title) {
-			if strings.Contains(title, "Uncensored") || strings.Contains(title, "FHD") {
-				selc = s
-				return false
-			}
 			selc = s
+			return false
 		}
 		return true
 	})

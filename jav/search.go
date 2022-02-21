@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -69,7 +70,9 @@ func DownloadImage(url, filePath, javID string) *errgroup.Group {
 		}
 
 		defer response.Body.Close()
-
+		if strings.Contains(response.Request.URL.String(), "removed") {
+			return ErrNotFound
+		}
 		if response.StatusCode != http.StatusOK {
 			if response.StatusCode == http.StatusNotFound {
 				return ErrNotFound

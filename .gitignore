@@ -8,3 +8,4 @@
 /static/*.jpg
 *.crt
 *.key
+.env

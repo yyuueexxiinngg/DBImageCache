@@ -23,6 +23,7 @@ import (
 //go:embed  static
 var static embed.FS
 
+var blogJav = jav.BlogJav{Repeat: 3, Limit: make(chan struct{}, 10)}
 var javStore = jav.JavStore{Repeat: 3, Limit: make(chan struct{}, 10)}
 var javBest = jav.JavBest{Repeat: 3, Limit: make(chan struct{}, 10)}
 var javScreens = jav.JavScreens{Repeat: 3, Limit: make(chan struct{}, 10)}
@@ -70,7 +71,9 @@ func main() {
 				c.File(config.ImgPath() + javID + ".jpg")
 				return
 			}
-			c.FileFromFS("static/notFound.png", http.FS(static))
+			c.JSON(404, gin.H{
+				"message": "not found",
+			})
 		}
 
 		//start
@@ -89,7 +92,17 @@ func main() {
 			c.File(config.ImgPath() + javID + ".jpg")
 			return
 		}
-		//todo: 记录每个番号的访问时间，磁盘满10G时，删除最久没访问过的100M文件
+
+		if err := blogJav.Download(javID); errors.Is(err, jav.ErrNotFound) {
+			logger.Info("BlogJav Not Found: " + javID)
+		} else if err != nil {
+			logger.Error("Jav [" + javID + "]: " + err.Error())
+		} else {
+			logger.Info("BlogJav Found: " + javID)
+			c.File(config.ImgPath() + javID + ".jpg")
+			return
+		}
+
 		if err := javStore.Download(javID); errors.Is(err, jav.ErrNotFound) {
 			logger.Info("JavStore Not Found: " + javID)
 		} else if err != nil {
@@ -130,10 +143,12 @@ func main() {
 			return
 		}
 		logger.Info(javID + "：Not Found")
-		c.FileFromFS("static/notFound.png", http.FS(static))
+		c.JSON(404, gin.H{
+			"message": "not found",
+		})
 	})
 
-	r.Run("0.0.0.0:5713")
+	r.Run(config.ListenAddress)
 }
 
 func timeoutMiddleware(timeout time.Duration) func(c *gin.Context) {
