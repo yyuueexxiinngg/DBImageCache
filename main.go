@@ -93,22 +93,22 @@ func main() {
 			return
 		}
 
-		if err := blogJav.Download(javID); errors.Is(err, jav.ErrNotFound) {
-			logger.Info("BlogJav Not Found: " + javID)
-		} else if err != nil {
-			logger.Error("Jav [" + javID + "]: " + err.Error())
-		} else {
-			logger.Info("BlogJav Found: " + javID)
-			c.File(config.ImgPath() + javID + ".jpg")
-			return
-		}
-
 		if err := javStore.Download(javID); errors.Is(err, jav.ErrNotFound) {
 			logger.Info("JavStore Not Found: " + javID)
 		} else if err != nil {
 			logger.Error("Jav [" + javID + "]: " + err.Error())
 		} else {
 			logger.Info("JavStore Found: " + javID)
+			c.File(config.ImgPath() + javID + ".jpg")
+			return
+		}
+
+		if err := blogJav.Download(javID); errors.Is(err, jav.ErrNotFound) {
+			logger.Info("BlogJav Not Found: " + javID)
+		} else if err != nil {
+			logger.Error("Jav [" + javID + "]: " + err.Error())
+		} else {
+			logger.Info("BlogJav Found: " + javID)
 			c.File(config.ImgPath() + javID + ".jpg")
 			return
 		}
